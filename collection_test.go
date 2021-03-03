@@ -12,6 +12,7 @@ type address struct {
 }
 
 type testDocument struct {
+	Key   string `json:"key"`
 	Name  string `json:"name"`
 	Phone string `json:"phone"`
 	Age   int    `json:"age"`
@@ -50,6 +51,7 @@ func TestCollection(t *testing.T) {
 	if err != nil {
 		t.Logf("Error inserting document")
 	}
+
 	// Check val is correct
 	var val testDocument
 
@@ -59,9 +61,20 @@ func TestCollection(t *testing.T) {
 		t.Logf("Error getting document (should exist)")
 	}
 
-	assert.EqualValues(t, item, val, "Saved values not match")
+	i := testDocument(item)
+	i.Key = key
 
-	// Update item
+	assert.EqualValues(t, i, val, "Saved values not match")
+
+	// Add second document
+
+	secondDocKey, err := collection.Insert(item)
+
+	if err != nil {
+		t.Logf("Error inserting second document")
+	}
+
+	// Update first document
 
 	newItem := testDocument(val)
 	newItem.Age = 16
@@ -76,12 +89,73 @@ func TestCollection(t *testing.T) {
 		t.Logf("Error updating item")
 	}
 
+	// Query only first
+
+	exp1 := Expression{a: "name", operator: "==", b: "Teppo"}
+	exp2 := Expression{a: "name", operator: "==", b: "Matti"}
+
+	q1 := Query{
+		blocks: [][]Expression{{exp1}},
+	}
+	items, err := collection.Find(q1, &val)
+
+	if err != nil {
+		t.Logf("Error querying results")
+	}
+
+	assert.Len(t, items, 1, "Length should be 1 is %d", len(items))
+
+	items, err = collection.Find(Query{
+		skip: 1,
+	}, &val)
+
+	if err != nil {
+		t.Logf("Error querying results")
+	}
+
+	assert.Len(t, items, 1, "Length should be 1 is %d", len(items))
+
+	items, err = collection.Find(Query{
+		limit: 1,
+	}, &val)
+
+	if err != nil {
+		t.Logf("Error querying results")
+	}
+
+	assert.Len(t, items, 1, "Length should be 1 is %d", len(items))
+
+	// Query both
+
+	q2 := Query{
+		blocks: [][]Expression{{exp1}, {exp2}},
+	}
+
+	items, err = collection.Find(q2, &val)
+
+	if err != nil {
+		t.Logf("Error querying results")
+	}
+
+	assert.Len(t, items, 2, "Length should be 2 is %d", len(items))
+
+	items, err = collection.Find(Query{}, &val)
+
+	if err != nil {
+		t.Logf("Error querying results")
+	}
+
+	assert.Len(t, items, 2, "Length should be 2 is %d", len(items))
+
 	// Check val is correct
 	err = collection.GetByKey(key, &val)
 
 	if err != nil {
 		t.Logf("Error getting document (should exist)")
 	}
+
+	i = testDocument(newItem)
+	i.Key = updateKey
 
 	assert.EqualValues(t, newItem, val, "Saved values not match")
 
@@ -95,11 +169,16 @@ func TestCollection(t *testing.T) {
 
 	assert.Equal(t, keys[0], key, "Listed key not equal to item key")
 
-	// Delete key
+	// Delete keys
 
 	err = collection.DeleteByKey(key)
 	if err != nil {
 		t.Logf("Error deleting document (should exist)")
+	}
+
+	err = collection.DeleteByKey(secondDocKey)
+	if err != nil {
+		t.Logf("Erorr deleting second document")
 	}
 
 	// Check not found

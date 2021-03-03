@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCore(t *testing.T) {
+func TestDb(t *testing.T) {
 	db, err := Open("test.db")
 	if err != nil {
 		t.Logf("Error opening database")
